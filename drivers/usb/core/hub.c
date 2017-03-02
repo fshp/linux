@@ -4457,6 +4457,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 					USB_DT_DEVICE << 8, 0,
 					buf, GET_DESCRIPTOR_BUFSIZE,
 					initial_descriptor_timeout);
+				dev_err(&udev->dev, "fix_usb:begin r=%d retries=%d operations=%d\n", r, retries, operations);
 				if (r < 0) {
 					/*
 					 * Some devices time out if they are powered on
@@ -4473,6 +4474,7 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 				case 8: case 16: case 32: case 64: case 255:
 					if (buf->bDescriptorType ==
 							USB_DT_DEVICE) {
+						dev_err(&udev->dev, "fix_usb:mid r=%d retries=%d operations=%d\n", r, retries, operations);
 						r = 0;
 						break;
 					}
@@ -4482,6 +4484,8 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 						r = -EPROTO;
 					break;
 				}
+
+				dev_err(&udev->dev, "fix_usb:end r=%d retries=%d operations=%d\n", r, retries, operations);
 				if (r == 0)
 					break;
 			}
