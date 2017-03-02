@@ -4457,6 +4457,18 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 					USB_DT_DEVICE << 8, 0,
 					buf, GET_DESCRIPTOR_BUFSIZE,
 					initial_descriptor_timeout);
+				if (r < 0) {
+					/*
+					 * Some devices time out if they are powered on
+					 * when already connected. They need a second
+					 * reset. But only on the first attempt,
+					 * lest we get into a time out/reset loop
+					 */
+					if (r == -ETIMEDOUT && retries == 0)
+						break;
+					else
+						continue;
+				}
 				switch (buf->bMaxPacketSize0) {
 				case 8: case 16: case 32: case 64: case 255:
 					if (buf->bDescriptorType ==
@@ -4470,29 +4482,25 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 						r = -EPROTO;
 					break;
 				}
-				/*
-				 * Some devices time out if they are powered on
-				 * when already connected. They need a second
-				 * reset. But only on the first attempt,
-				 * lest we get into a time out/reset loop
-				 */
-				if (r == 0  || (r == -ETIMEDOUT && retries == 0))
+				if (r == 0)
 					break;
 			}
 			udev->descriptor.bMaxPacketSize0 =
 					buf->bMaxPacketSize0;
 			kfree(buf);
 
-			retval = hub_port_reset(hub, port1, udev, delay, false);
-			if (retval < 0)		/* error or disconnect */
-				goto fail;
-			if (oldspeed != udev->speed) {
-				dev_dbg(&udev->dev,
-					"device reset changed speed!\n");
-				retval = -ENODEV;
-				goto fail;
-			}
+			/*second reset only on error*/
 			if (r) {
+				retval = hub_port_reset(hub, port1, udev, delay, false);
+				dev_err(&udev->dev, "USB hub_port_reset retval=%d\n", retval);
+				if (retval < 0)		/* error or disconnect */
+					goto fail;
+				if (oldspeed != udev->speed) {
+					dev_dbg(&udev->dev,
+						"device reset changed speed!\n");
+					retval = -ENODEV;
+					goto fail;
+				}
 				if (r != -ENODEV)
 					dev_err(&udev->dev, "device descriptor read/64, error %d\n",
 							r);
