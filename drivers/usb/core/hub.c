@@ -4606,7 +4606,15 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 		usb_ep0_reinit(udev);
 	}
 
-	retval = usb_get_device_descriptor(udev, USB_DT_DEVICE_SIZE);
+	for (operations = 0; operations < 3; ++operations) {
+		retval = usb_get_device_descriptor(udev, USB_DT_DEVICE_SIZE);
+		if (retval >= (signed)sizeof(udev->descriptor)) {
+			break;
+		}
+		else {
+			dev_err(&udev->dev, "fix_usb: descriptor read/all, error %d\n", retval);
+		}
+	}
 	if (retval < (signed)sizeof(udev->descriptor)) {
 		if (retval != -ENODEV)
 			dev_err(&udev->dev, "device descriptor read/all, error %d\n",
